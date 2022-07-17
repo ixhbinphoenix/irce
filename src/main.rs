@@ -1,7 +1,9 @@
 use std::str;
+use parser::parse_message;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-
+pub mod parser;
+pub mod validator;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -31,8 +33,18 @@ async fn handle_connection(mut socket: TcpStream) {
                     .filter(|s| s != &"")
                     .collect();
                 for unparsed_packet in unparsed_packets {
-                    // TODO: Parse and handle packet
-                    println!("{:?}", unparsed_packet);
+                    println!("{}", unparsed_packet);
+                    let msg = parse_message(unparsed_packet);
+                    match msg {
+                        Ok(packet) => {
+                            println!("Parsed packet: {:?}", &packet);
+                            // TODO: Handle packet
+                        },
+                        Err(e) => {
+                            println!("Parsing error: {}", &e);
+                            // TODO: Return error codes
+                        },
+                    }
                 }
             },
             // Unexpected socket error. Treat client as disconnected
