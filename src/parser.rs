@@ -1,10 +1,13 @@
 use std::{error, fmt};
-use crate::validator::{valid_hostname, valid_ipv4_addr, valid_ipv6_addr};
+use crate::validator::{valid_hostname, valid_ipv4_addr, valid_ipv6_addr, valid_nick};
 
 #[derive(Debug)]
 pub enum ParseError {
     EmptyMessage,
     NoCommand,
+    InvalidSource(String),
+    InvalidNick(String),
+    InvalidUser(String),
     InvalidHost(String),
     Unimplemented
 }
@@ -14,7 +17,10 @@ impl fmt::Display for ParseError {
         match self {
             ParseError::EmptyMessage => write!(f, "Empty message"),
             ParseError::NoCommand => write!(f, "Message contains no command"),
-            ParseError::InvalidHost(host) => write!(f, "Invalid gost string, {}", &host),
+            ParseError::InvalidSource(source) => write!(f, "Invalid source: {}", &source),
+            ParseError::InvalidNick(nick) => write!(f, "Invalid nick: {}", &nick),
+            ParseError::InvalidUser(user) => write!(f, "Invalid user: {}", &user),
+            ParseError::InvalidHost(host) => write!(f, "Invalid host: {}", &host),
             ParseError::Unimplemented => write!(f, "Unimplemented")
         }
     }
@@ -31,7 +37,10 @@ pub enum HostType {
 
 #[derive(Debug)]
 pub enum MsgSource {
-    Host(HostType)
+    Nick(String),
+    NickHost(String, HostType),
+    NickUserHost(String, String, HostType),
+    Host(HostType),
 }
 
 #[derive(Debug)]
@@ -54,15 +63,7 @@ pub fn parse_message(message: &str) -> Result<ParsedMsg, ParseError> {
         }
         line = vec[1];
         // TODO: Parse message prefix
-        let hostname = vec[0];
-        match parse_host(hostname) {
-            Ok(host) => {
-                Some(MsgSource::Host(host))
-            },
-            Err(e) => {
-                return Err(e);
-            },
-        }
+        Some(parse_source(vec[0])?)
     } else {
         None
     };
@@ -88,6 +89,7 @@ pub fn parse_message(message: &str) -> Result<ParsedMsg, ParseError> {
             break;
         } else if n_args > 15 {
             // As per old RFC definitions, the max amount of arguments is 15
+            // 1st element ([0]) is the command so we can push a "16th" [15] argument
             params.push(line.to_string());
             break;
         }
@@ -100,6 +102,44 @@ pub fn parse_message(message: &str) -> Result<ParsedMsg, ParseError> {
         command,
         params
     })
+}
+
+// "Source" is one of the following formats:
+// - <hostname> -> MsgSource::Host
+// - <nick>[!<user>][@<host>] -> MsgSource::Nick OR MsgSource::NickHost OR MsgSource::NickUserHost
+fn parse_source(source: &str)-> Result<MsgSource, ParseError> {
+    let vec: Vec<&str> = source.splitn(2, '@').collect();
+
+    if !vec[1].is_empty() {
+        let host = parse_host(vec[1])?;
+
+        if vec[0].contains('!') {
+            // This is an ugly solution, but a working one.
+            let vec_two: Vec<&str> = vec[0].splitn(2, '!').collect();
+
+            if valid_nick(vec_two[0]) {
+                // TODO: Validate user. I have no idea how to do that, there are no contraints
+                // defined anywhere
+                return Ok(MsgSource::NickUserHost(vec_two[0].into(), vec_two[1].into(), host));
+            } else {
+                return Err(ParseError::InvalidNick(vec_two[0].into()));
+            }
+        } else {
+            if valid_nick(vec[0]) {
+                return Ok(MsgSource::NickHost(vec[0].into(), host));
+            } else {
+                return Err(ParseError::InvalidNick(vec[0].into()));
+            }
+        }
+    } else {
+        if let Ok(host) = parse_host(source) {
+            return Ok(MsgSource::Host(host));
+        } else if valid_nick(source) {
+            return Ok(MsgSource::Nick(source.into()));
+        } else {
+            return Err(ParseError::InvalidSource(source.into()));
+        }
+    }
 }
 
 fn parse_host(hostname: &str) -> Result<HostType, ParseError> {

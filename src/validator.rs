@@ -8,6 +8,10 @@ pub const DIGIT: &str = "0123456789";
 
 pub const MAX_HOSTNAME_LENGTH: usize = 253;
 pub const MAX_SHORTNAME_LENGTH: usize = 63;
+pub const MAX_NICK_LENGTH: usize = 32; // RFC defines this as 9, but we ignore this since that is a
+                                       // stupid limit
+
+pub const NAME_FORBIDDEN: &str = "\0\r\n ";
 
 fn matches_allowed(msg: &str, allowed: &str) -> bool {
     for character in msg.chars() {
@@ -58,8 +62,7 @@ pub fn valid_hostname(hostname: &str) -> bool {
 }
 
 pub fn valid_shortname(shortname: &str) -> bool {
-    if shortname.is_empty()
-       || shortname.len() > MAX_SHORTNAME_LENGTH
+    if shortname.is_empty() || shortname.len() > MAX_SHORTNAME_LENGTH
     {
         return false;
     }
@@ -69,4 +72,22 @@ pub fn valid_shortname(shortname: &str) -> bool {
     allowed.push_str(DIGIT);
     allowed.push_str("-");
     matches_allowed(shortname, &allowed)
+}
+
+pub fn valid_nick(nick: &str) -> bool {
+    if nick.is_empty() || nick.len() > MAX_NICK_LENGTH {
+        return false;
+    }
+    let mut allowed = String::new();
+    allowed.push_str(LETTERS);
+
+    // Test first character (can not be digit or '-')
+    let first: String = nick.chars().take(1).collect();
+    if !matches_allowed(&first, &allowed) {
+        return false;
+    }
+    // Test all characters (can be digits and '-')
+    allowed.push_str(DIGIT);
+    allowed.push('-');
+    matches_allowed(&nick, &allowed)
 }
