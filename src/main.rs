@@ -27,7 +27,7 @@ async fn handle_connection(mut socket: TcpStream) {
             // Client disconnected
             Ok(0) => return,
             Ok(_n) => {
-                let inc = str::from_utf8(&buf).expect("valid utf-8").replace("\0", "");
+                let inc = str::from_utf8(&buf).expect("valid utf-8").replace('\0', "");
                 let unparsed_packets: Vec<&str> = inc
                     .split("\r\n")
                     .filter(|s| s != &"")

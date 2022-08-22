@@ -32,17 +32,11 @@ fn matches_forbidden(msg: &str, forbidden: &str) -> bool {
 }
 
 pub fn valid_ipv4_addr(host_addr: &str) -> bool {
-    match host_addr.parse::<Ipv4Addr>() {
-        Ok(_) => true,
-        Err(_) => false
-    }
+    host_addr.parse::<Ipv4Addr>().is_ok()
 }
 
 pub fn valid_ipv6_addr(host_addr: &str) -> bool {
-    match host_addr.parse::<Ipv6Addr>() {
-        Ok(_) => true,
-        Err(_) => false
-    }
+    host_addr.parse::<Ipv6Addr>().is_ok()
 }
 
 pub fn valid_hostname(hostname: &str) -> bool {
@@ -50,7 +44,7 @@ pub fn valid_hostname(hostname: &str) -> bool {
         return false;
     }
 
-    // hostname can be tokenised with periods, ever string enclosed should be a valid shortname
+    // hostname can be split up into shortnames with periods
     let toks: Vec<&str> = hostname.split('.').collect();
     for item in toks.iter() {
         if item.is_empty() || !valid_shortname(item) {
@@ -70,7 +64,7 @@ pub fn valid_shortname(shortname: &str) -> bool {
     let mut allowed = String::new();
     allowed.push_str(LOWER);
     allowed.push_str(DIGIT);
-    allowed.push_str("-");
+    allowed.push('-');
     matches_allowed(shortname, &allowed)
 }
 
@@ -89,5 +83,5 @@ pub fn valid_nick(nick: &str) -> bool {
     // Test all characters (can be digits and '-')
     allowed.push_str(DIGIT);
     allowed.push('-');
-    matches_allowed(&nick, &allowed)
+    matches_allowed(nick, &allowed)
 }

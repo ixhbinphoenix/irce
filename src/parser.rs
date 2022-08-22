@@ -56,7 +56,7 @@ pub fn parse_message(message: &str) -> Result<ParsedMsg, ParseError> {
         return Err(ParseError::EmptyMessage)
     }
 
-    let source = if line.starts_with(":") {
+    let source = if line.starts_with(':') {
         let vec: Vec<&str> = line.splitn(2, ' ').collect();
         if vec.len() < 2 {
             return Err(ParseError::NoCommand);
@@ -120,25 +120,21 @@ fn parse_source(source: &str)-> Result<MsgSource, ParseError> {
             if valid_nick(vec_two[0]) {
                 // TODO: Validate user. I have no idea how to do that, there are no contraints
                 // defined anywhere
-                return Ok(MsgSource::NickUserHost(vec_two[0].into(), vec_two[1].into(), host));
+                Ok(MsgSource::NickUserHost(vec_two[0].into(), vec_two[1].into(), host))
             } else {
-                return Err(ParseError::InvalidNick(vec_two[0].into()));
+                Err(ParseError::InvalidNick(vec_two[0].into()))
             }
+        } else if valid_nick(vec[0]) {
+            Ok(MsgSource::NickHost(vec[0].into(), host))
         } else {
-            if valid_nick(vec[0]) {
-                return Ok(MsgSource::NickHost(vec[0].into(), host));
-            } else {
-                return Err(ParseError::InvalidNick(vec[0].into()));
-            }
+            Err(ParseError::InvalidNick(vec[0].into()))
         }
+    } else if let Ok(host) = parse_host(source) {
+        Ok(MsgSource::Host(host))
+    } else if valid_nick(source) {
+        Ok(MsgSource::Nick(source.into()))
     } else {
-        if let Ok(host) = parse_host(source) {
-            return Ok(MsgSource::Host(host));
-        } else if valid_nick(source) {
-            return Ok(MsgSource::Nick(source.into()));
-        } else {
-            return Err(ParseError::InvalidSource(source.into()));
-        }
+        Err(ParseError::InvalidSource(source.into()))
     }
 }
 
